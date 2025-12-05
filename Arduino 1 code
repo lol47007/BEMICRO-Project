@@ -1,0 +1,51 @@
+#define PRESSURE_THRESHOLD 200
+#define TEMP_HOLD 30000  // 3 s dwell time for demo
+#define TEMP_MODERATE 32.0
+#define TEMP_RISK 33.0
+
+int fsrPins[5] = {A0, A1, A2, A3, A4};
+int tempPin = A5;
+
+unsigned long dwellTimer = 0;
+bool dwellActive = false;
+float baseTemp = 27.0;
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  int fsr[5];
+  for (int i = 0; i < 5; i++) fsr[i] = analogRead(fsrPins[i]);
+
+  int rawTemp = analogRead(tempPin);
+  float voltage = rawTemp * (5.0 / 1023.0);
+  float tempC = (voltage - 0.5) * 100.0;
+
+  bool pressureHigh = false;
+  for (int i = 0; i < 5; i++)
+    if (fsr[i] > PRESSURE_THRESHOLD) pressureHigh = true;
+
+  if (pressureHigh) {
+    if ((millis() - dwellTimer) > TEMP_HOLD) dwellActive = true;
+  } else {
+    dwellTimer = millis();
+    dwellActive = false;
+  }
+
+  int risk = 0;
+
+  if (dwellActive && tempC > TEMP_RISK) risk = 2;
+  else if (pressureHigh || tempC > TEMP_MODERATE) risk = 1;
+  else risk = 0;
+
+  for (int i = 0; i < 5; i++) {
+    Serial.print(fsr[i]);
+    Serial.print(",");
+  }
+  Serial.print(tempC, 1);
+  Serial.print(",");
+  Serial.println(risk);
+
+  delay(200);
+}
