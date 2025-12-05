@@ -1,0 +1,68 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+int redPin = 3;
+int greenPin = 4;
+int bluePin = 5;
+int buzzerPin = 6;
+
+void setup() {
+  Serial.begin(9600);
+  lcd.init();
+  lcd.backlight();
+
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+
+  lcd.setCursor(0, 0);
+  lcd.print("System Ready");
+}
+
+void setColor(int r, int g, int b) {
+  analogWrite(redPin, r);
+  analogWrite(greenPin, g);
+  analogWrite(bluePin, b);
+}
+
+void loop() {
+  if (Serial.available()) {
+    String data = Serial.readStringUntil('\n');
+    data.trim();
+    if (data.length() < 5) return;
+
+    float vals[7];
+    int idx = 0, last = 0;
+    for (int i = 0; i < data.length(); i++) {
+      if (data[i] == ',' || i == data.length() - 1) {
+        String part = data.substring(last, i);
+        if (i == data.length() - 1 && data[i] != ',') part += data[i];
+        vals[idx++] = part.toFloat();
+        last = i + 1;
+      }
+    }
+
+    if (idx >= 7) {
+      float tempC = vals[5];
+      int risk = vals[6];
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      if (risk == 0) {
+        lcd.print("STATUS: SAFE");
+        setColor(0, 255, 0);
+        noTone(buzzerPin);
+      } else if (risk == 1) {
+        lcd.print("STATUS: CAUTION");
+        setColor(255, 180, 0);
+        tone(buzzerPin, 1000, 150);
+      } else {
+        lcd.print("STATUS: AT RISK!");
+        setColor(255, 0, 0);
+        tone(buzzerPin, 800);
+      }
+    }
+  }
+}
